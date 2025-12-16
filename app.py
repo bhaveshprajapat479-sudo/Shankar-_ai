@@ -19,6 +19,9 @@ st.set_page_config(page_title="Shankar AI Voice Assistant", layout="centered")
 
 st.title("🤖 Shankar AI Assistant (आपके लिए!)")
 st.caption("✨ Voice Input और Output के साथ Gemini 2.5 Flash पर आधारित।")
+st.markdown("निर्माता: **दिवेश कुमार**")
+st.markdown("---")
+
 
 # --- Function to call Gemini API ---
 def get_gemini_response(prompt):
