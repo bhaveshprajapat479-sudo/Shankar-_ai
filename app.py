@@ -2,44 +2,32 @@ import streamlit as st
 import requests
 
 # Page Config
-st.set_page_config(page_title="Shankar AI Pro Max", layout="centered", page_icon="🎤")
+st.set_page_config(page_title="Shankar AI Pro Max", layout="centered", page_icon="🔎")
 
-# Custom CSS for Premium Look & Buttons
-st.markdown("""
-    <style>
-    .stTextInput > div > div > input { border-radius: 25px; padding: 12px; }
-    .share-btn {
-        background-color: #007bff; color: white; padding: 10px 20px;
-        border-radius: 20px; text-decoration: none; display: inline-block;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Header
+# Header Section
 st.title("🔎 Shankar AI Pro Max")
 st.markdown("निर्माता: **देवेश कुमार** | स्कूल: **MKVV** | कक्षा: **9th**")
 
-# Input Section with Mic Mention
-st.info("🎤 माइक इनपुट के लिए अपने कीबोर्ड का माइक इस्तेमाल करें।")
-user_query = st.text_input("", placeholder="यहाँ बोलकर या लिखकर पूछें...")
+# Get API Key from Secrets
+api_key = st.secrets.get("GEMINI_API_KEY")
 
-# Share Button Logic
-app_url = "https://shankar-ai-aqu8tgjid.streamlit.app/"
-st.markdown(f'<a href="whatsapp://send?text=Check out my AI app: {app_url}" class="share-btn">📲 WhatsApp पर शेयर करें</a>', unsafe_allow_html=True)
+# Input Area
+user_query = st.text_input("अपना सवाल यहाँ लिखें:", placeholder="पूछें...")
 
-# API Call
-api_key = st.secrets["GEMINI_API_KEY"]
+# AI को सवाल भेजने वाला बटन
+submit_button = st.button("🚀 सवाल भेजें")
 
-if user_query:
-    with st.spinner('सोच रहा हूँ...'):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
-        response = requests.post(url, json={"contents": [{"parts": [{"text": user_query}]}]})
-        if response.status_code == 200:
-            st.success(response.json()['candidates'][0]['content']['parts'][0]['text'])
-        else:
-            st.error("API Key की समस्या है।")
-
-
-
-
-
+if submit_button and user_query:
+    if not api_key:
+        st.error("API Key नहीं मिली! कृपया Secrets चेक करें।")
+    else:
+        with st.spinner('एआई सोच रहा हूँ...'):
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+            try:
+                response = requests.post(url, json={"contents": [{"parts": [{"text": user_query}]}]})
+                if response.status_code == 200:
+                    st.success(response.json()['candidates'][0]['content']['parts'][0]['text'])
+                else:
+                    st.error(f"सर्वर की समस्या (Error {response.status_code})। कृपया थोड़ी देर बाद कोशिश करें।")
+            except:
+                st.error("नेटवर्क की समस्या है।")
