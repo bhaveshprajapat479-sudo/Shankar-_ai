@@ -32,4 +32,4 @@ if submit_button and user_query:
                     st.error(f"Error {response.status_code}: कृपया अपनी API Key या Model चेक करें।")
             except:
                 st.error("कनेक्शन में समस्या है।")
-                
+
