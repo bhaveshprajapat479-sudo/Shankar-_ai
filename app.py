@@ -3,11 +3,12 @@ import requests
 from gtts import gTTS
 import base64
 import io
+import time
 
 # 1. Page Config
 st.set_page_config(page_title="Shankar AI", layout="wide")
 
-# 2. Advanced Animation
+# 2. Advanced Animation & UI
 if "speaking" not in st.session_state: st.session_state.speaking = False
 speed = "0.4s" if st.session_state.speaking else "1.5s"
 
@@ -29,7 +30,7 @@ st.markdown(f"""
 
 st.markdown("<h1 style='text-align: center; color: #00d2ff;'>🎙️ SHANKAR AI</h1>", unsafe_allow_html=True)
 
-# 3. Mic UI
+# 3. Mic Integration (Best for Mobile)
 st.components.v1.html("""
     <div style="text-align: center;">
         <button id="micBtn" style="background:#00d2ff; border:none; border-radius:50%; width:65px; height:65px; font-size:32px; cursor:pointer;">🎤</button>
@@ -42,13 +43,13 @@ st.components.v1.html("""
     btn.onclick = () => { recognition.start(); btn.style.background = 'red'; };
     recognition.onresult = (event) => {
         const text = event.results[0][0].transcript;
-        window.parent.postMessage({type: 'streamlit:set_widget_value', data: {id: 'final_chat', value: text}}, '*');
+        window.parent.postMessage({type: 'streamlit:set_widget_value', data: {id: 'final_box', value: text}}, '*');
         btn.style.background = '#00d2ff';
     };
     </script>
     """, height=120)
 
-# 4. API Core Logic
+# 4. API Core with Auto-Retry Logic
 api_key = st.secrets.get("GEMINI_API_KEY")
 if "history" not in st.session_state: st.session_state.history = []
 
@@ -62,27 +63,30 @@ def speak(text):
         st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except: pass
 
-query = st.chat_input("शंकर से बात करें...", key="final_chat")
+query = st.chat_input("शंकर आपकी सेवा में तैयार है...", key="final_box")
 
 if query:
     st.session_state.history.append({"role": "user", "content": query})
     st.session_state.speaking = False
     
-    # Using the most stable production URL
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
     
-    try:
-        res = requests.post(url, json={"contents": [{"parts": [{"text": query}]}]}, timeout=30)
-        if res.status_code == 200:
-            ans = res.json()['candidates'][0]['content']['parts'][0]['text']
-            st.session_state.history.append({"role": "assistant", "content": ans})
-            st.session_state.speaking = True
-            speak(ans)
-            st.rerun()
-        else:
-            st.error("सर्वर थोड़ा व्यस्त है, कृपया 2 सेकंड बाद फिर टाइप करें।")
-    except:
-        st.error("कनेक्शन में समस्या। कृपया नेट चेक करें।")
+    # Logic: It will try 3 times before showing an error
+    for attempt in range(3):
+        try:
+            res = requests.post(url, json={"contents": [{"parts": [{"text": query}]}]}, timeout=30)
+            if res.status_code == 200:
+                ans = res.json()['candidates'][0]['content']['parts'][0]['text']
+                st.session_state.history.append({"role": "assistant", "content": ans})
+                st.session_state.speaking = True
+                speak(ans)
+                st.rerun()
+                break
+            else:
+                time.sleep(1) # Wait for 1 second and try again
+        except:
+            if attempt == 2:
+                st.error("नेटवर्क बहुत धीमा है। कृपया अपना इंटरनेट कनेक्शन चेक करें।")
 
 for chat in st.session_state.history:
     cls = "user-bubble" if chat["role"] == "user" else "ai-bubble"
