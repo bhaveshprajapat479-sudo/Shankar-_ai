@@ -3,11 +3,12 @@ import requests
 from gtts import gTTS
 import base64
 import io
+import time
 
-# Page Config
+# 1. Page Configuration
 st.set_page_config(page_title="Shankar AI", layout="wide")
 
-# UI & Animation
+# 2. UI & Ring Animation
 st.markdown("""
     <style>
     .stApp { background-color: #000000; color: #00d2ff; }
@@ -24,7 +25,26 @@ st.markdown("""
     <h1 style='text-align: center; color: #00d2ff;'>🎙️ SHANKAR AI</h1>
     """, unsafe_allow_html=True)
 
-# Directly using your key from the screenshot to ensure it works
+# 3. Mic System (Wapas Add Kar Diya Hai)
+st.components.v1.html("""
+    <div style="text-align: center;">
+        <button id="micBtn" style="background:#00d2ff; border:none; border-radius:50%; width:65px; height:65px; font-size:32px; cursor:pointer;">🎤</button>
+        <p style="color:#00d2ff; margin-top:8px; font-family:sans-serif;">माइक दबाकर बोलें</p>
+    </div>
+    <script>
+    const btn = document.getElementById('micBtn');
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'hi-IN';
+    btn.onclick = () => { recognition.start(); btn.style.background = 'red'; };
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        window.parent.postMessage({type: 'streamlit:set_widget_value', data: {id: 'shankar_chat', value: text}}, '*');
+        btn.style.background = '#00d2ff';
+    };
+    </script>
+    """, height=120)
+
+# API Key (Direct input to avoid Secrets delay)
 API_KEY = "AIzaSyCcO05rtWkhQlrqQRGs_VYsu_X2kcZdO0Y"
 
 def speak(text):
@@ -36,17 +56,26 @@ def speak(text):
         st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except: pass
 
-query = st.chat_input("शंकर आपकी सेवा में तैयार है...")
+query = st.chat_input("यहाँ लिखें या माइक का उपयोग करें...", key="shankar_chat")
 
 if query:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-    try:
-        res = requests.post(url, json={"contents": [{"parts": [{"text": query}]}]}, timeout=15)
-        if res.status_code == 200:
-            ans = res.json()['candidates'][0]['content']['parts'][0]['text']
-            st.markdown(f'<div class="ai-bubble">{ans}</div>', unsafe_allow_html=True)
-            speak(ans)
-        else:
-            st.error("गूगल सर्वर अभी बिजी है, कृपया 10 सेकंड बाद दोबारा कोशिश करें।")
-    except:
-        st.error("कनेक्शन फेल! कृपया नेट चेक करें।")
+    success = False
+    
+    # Retry logic to handle "Busy" error
+    for i in range(2):
+        try:
+            res = requests.post(url, json={"contents": [{"parts": [{"text": query}]}]}, timeout=25)
+            if res.status_code == 200:
+                ans = res.json()['candidates'][0]['content']['parts'][0]['text']
+                st.markdown(f'<div class="ai-bubble">{ans}</div>', unsafe_allow_html=True)
+                speak(ans)
+                success = True
+                break
+            else:
+                time.sleep(2)
+        except:
+            continue
+            
+    if not success:
+        st.warning("सर्वर थोड़ा सुस्त है, कृपया एक बार फिर 'Send' दबाएं।")
