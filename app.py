@@ -4,12 +4,12 @@ from gtts import gTTS
 import base64
 import io
 
-# 1. Page Config
+# 1. Page Configuration
 st.set_page_config(page_title="Shankar AI", layout="wide")
 
-# 2. Advanced CSS for Ring & Mic
+# 2. Advanced Animation & CSS
 if "speaking" not in st.session_state: st.session_state.speaking = False
-speed = "0.3s" if st.session_state.speaking else "1.5s"
+speed = "0.4s" if st.session_state.speaking else "1.5s"
 
 st.markdown(f"""
     <style>
@@ -29,46 +29,30 @@ st.markdown(f"""
 
 st.markdown("<h1 style='text-align: center; color: #00d2ff;'>🎙️ SHANKAR AI</h1>", unsafe_allow_html=True)
 
-# 3. Dedicated Mic Button (Direct Script)
-st.components.v1.html("""
-    <script>
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'hi-IN';
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        window.parent.postMessage({type: 'mic-text', value: text}, '*');
-    };
-    function startMic() { recognition.start(); }
-    </script>
-    <div style="text-align:center;">
-        <button onclick="startMic()" style="background:#00d2ff; border:none; border-radius:50%; width:60px; height:60px; font-size:30px; cursor:pointer;">🎤</button>
-        <p style="color:#00d2ff; font-family:sans-serif; margin-top:5px;">माइक दबाकर बोलें</p>
-    </div>
-    """, height=120)
-
-# 4. Voice Logic
+# 3. Voice Logic (Name: Devesh included)
 def speak(text):
-    tts = gTTS(text=text, lang='hi')
+    full_text = f"नमस्ते देवेश, {text}" if "history" in st.session_state and len(st.session_state.history) < 3 else text
+    tts = gTTS(text=full_text, lang='hi')
     fp = io.BytesIO()
     tts.write_to_fp(fp)
     b64 = base64.b64encode(fp.getvalue()).decode()
     st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
 
-# 5. Core Interaction
+# 4. Core Interaction
 api_key = st.secrets.get("GEMINI_API_KEY")
 if "history" not in st.session_state: st.session_state.history = []
 
-query = st.chat_input("Shankar AI को यहाँ से भी आदेश दे सकते हैं...")
+query = st.chat_input("Shankar AI को आदेश दें...")
 
 if query:
     st.session_state.history.append({"role": "user", "content": query})
     st.session_state.speaking = False
     
-    # Stable URL Fix
+    # Corrected & Most Stable URL
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     try:
-        res = requests.post(url, json={"contents": [{"parts": [{"text": query}]}]}, timeout=20)
+        res = requests.post(url, json={"contents": [{"parts": [{"text": query}]}]}, timeout=15)
         if res.status_code == 200:
             ans = res.json()['candidates'][0]['content']['parts'][0]['text']
             st.session_state.history.append({"role": "assistant", "content": ans})
@@ -76,11 +60,11 @@ if query:
             speak(ans)
             st.rerun()
         else:
-            st.warning("सिस्टम अपडेट हो रहा है, कृपया 5 सेकंड रुकें।")
+            st.warning("गूगल सर्वर से कनेक्ट हो रहा है... कृपया दोबारा लिखें।")
     except:
-        st.error("कनेक्शन में समस्या!")
+        st.error("Connection error! Please check Internet.")
 
-# 6. History
+# 5. Display History
 for chat in st.session_state.history:
-    role_css = "user-bubble" if chat["role"] == "user" else "ai-bubble"
-    st.markdown(f'<div class="{role_css}">{chat["content"]}</div><div style="clear:both;"></div>', unsafe_allow_html=True)
+    cls = "user-bubble" if chat["role"] == "user" else "ai-bubble"
+    st.markdown(f'<div class="{cls}">{chat["content"]}</div><div style="clear:both;"></div>', unsafe_allow_html=True)
